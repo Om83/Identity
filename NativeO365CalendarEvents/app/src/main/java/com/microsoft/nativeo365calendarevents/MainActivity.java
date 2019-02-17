@@ -12,8 +12,20 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.Toast;
 import android.app.ProgressDialog;
+import android.content.Intent;
+import android.util.Log;
 
-public class MainActivity extends AppCompatActivity {
+import com.microsoft.identity.client.AuthenticationResult;
+import com.microsoft.identity.client.exception.MsalException;
+import com.microsoft.identity.client.IAccount;
+
+import android.widget.ArrayAdapter;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.SettableFuture;
+import java.util.List;
+
+public class MainActivity extends AppCompatActivity implements MSALAuthenticationCallback{
     private final static String TAG = MainActivity.class.getSimpleName();
 
     private ProgressDialog progress;
@@ -79,25 +91,92 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void onSignin() {
-        Toast.makeText(MainActivity.this, "Hello <user>!", Toast.LENGTH_LONG).show();
-
-        setPanelVisibility(false,true,false);
+        AuthenticationController authController = AuthenticationController.getInstance(this);
+        authController.doAcquireToken(this, this);
     }
 
     private void onSignout() {
+        AuthenticationController authController = AuthenticationController.getInstance(this);
+        authController.signout();
+
         setPanelVisibility(true, false, false);
     }
-
     private void onLoadEvents() {
-        Toast.makeText(MainActivity.this,
-                "Successfully loaded events from Office 365 calendar",
-                Toast.LENGTH_LONG
-        ).show();
+        MSGraphServiceController graphController = new MSGraphServiceController(this);
+
+        progress = ProgressDialog.show(this, "Loading", "Loading first 20 events...");
+        SettableFuture<List<String>> events = graphController.getEvents();
+        Futures.addCallback(events, new FutureCallback<List<String>>() {
+            @Override
+            public void onSuccess(final List<String> result) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(MainActivity.this, "Loaded events success!", Toast.LENGTH_LONG).show();
+                        progress.dismiss();
+                        bindEvents(result);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+
+            }
+        });
     }
 
     private void setPanelVisibility(Boolean showSignIn, Boolean showLoadEvents, Boolean showList) {
         panelSignIn.setVisibility(showSignIn ? View.VISIBLE : View.GONE);
         panelLoadEvent.setVisibility(showLoadEvents ? View.VISIBLE : View.GONE);
         panelEvents.setVisibility(showList ? View.VISIBLE : View.GONE);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (AuthenticationController.getInstance(this).getPublicClient() != null) {
+            AuthenticationController.getInstance(this).getPublicClient().handleInteractiveRequestRedirect(requestCode, resultCode, data);
+        }
+    }
+
+
+    //region MSALAuthenticationCallback() implementation
+    // these methods are called by the AuthenticationController
+        @Override
+        public void onMsalAuthSuccess(AuthenticationResult authenticationResult) {
+            IAccount user = authenticationResult.getAccount();
+
+            Toast.makeText(MainActivity.this, "Hello " + user.getUsername()
+                    + " (" + user.getAccountIdentifier() + ")!", Toast.LENGTH_LONG
+            ).show();
+
+            setPanelVisibility(false, true, false);
+        }
+
+        @Override
+        public void onMsalAuthError(MsalException exception) {
+            Log.e(TAG, "Error authenticated", exception);
+        }
+
+        @Override
+        public void onMsalAuthError(Exception exception) {
+            Log.e(TAG, "Error authenticated", exception);
+        }
+
+        @Override
+        public void onMsalAuthCancel() {
+            Log.d(TAG, "Cancel authenticated");
+        }
+    //endregion
+
+    private void bindEvents(List<String> events) {
+        setPanelVisibility(false, false, true);
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(
+                this,
+                android.R.layout.simple_expandable_list_item_1,
+                events);
+        listEvents.setAdapter(adapter);
     }
 }
