@@ -1,0 +1,6 @@
+framework module Pods_MSGraphSampleTests {
+  umbrella header "Pods-MSGraphSampleTests-umbrella.h"
+
+  export *
+  module * { export * }
+}

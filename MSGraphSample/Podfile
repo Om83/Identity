@@ -1,0 +1,20 @@
+# Uncomment the next line to define a global platform for your project
+# platform :ios, '9.0'
+
+target 'MSGraphSample' do
+  # Comment the next line if you don't want to use dynamic frameworks
+  use_frameworks!
+pod 'MSAL', '~> 0.4.0'
+  # Pods for MSGraphSample
+
+  target 'MSGraphSampleTests' do
+    inherit! :search_paths
+    # Pods for testing
+  end
+
+  target 'MSGraphSampleUITests' do
+    inherit! :search_paths
+    # Pods for testing
+  end
+
+end
